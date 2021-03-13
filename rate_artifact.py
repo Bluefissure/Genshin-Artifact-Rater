@@ -54,7 +54,7 @@ async def ocr(url, num, lang=tr.en()):
 					ocr_url += f'&language={lang.code}'
 				async with session.get(ocr_url) as r:
 					json = await r.json()
-			print(f'OCR Response: {json}')
+			# print(f'OCR Response: {json}')
 			if json['OCRExitCode'] != 1:
 				return False, f'{lang.err}: ' + '. '.join(json['ErrorMessage'])
 			if 'ParsedResults' not in json:
@@ -92,13 +92,13 @@ def parse(text, lang=tr.en()):
 		value = lvl_reg.search(line.replace(' ',''))
 		if value:
 			if level == None or (len(results) == 1 and not stat):
-				print('1', line)
+				# print('1', line)
 				level = int(value[0].replace('+',''))
 			continue
 
 		value = hp_reg.search(line.replace(' ',''))
 		if value:
-			print('2', line)
+			# print('2', line)
 			value = int(value[0].replace(',','').replace('.',''))
 			results += [[lang.hp, value]]
 			stat = None
@@ -109,14 +109,14 @@ def parse(text, lang=tr.en()):
 			extract = process.extractOne(line, list(choices), scorer=fuzz.partial_ratio)
 
 		if ((extract[1] > 80) and len(line.replace(' ','')) > 1) or stat:
-			print('3', line)
+			# print('3', line)
 			if (extract[1] > 80):
 				stat = choices[extract[0]]
 			value = reg.findall(line.replace(' ','').replace(',','.'))
 			if not value:
 				if not prev:
 					continue
-				print('4', prev)
+				# print('4', prev)
 				value = prev
 			value = max(value, key=len)
 			if len(value) < 2:
@@ -140,7 +140,7 @@ def parse(text, lang=tr.en()):
 			prev = reg.findall(line.replace(' ',''))
 			del_prev = False
 
-	print(level, results)
+	# print(level, results)
 	return level, results
 
 def validate(value, max_stat, percent):
@@ -217,18 +217,29 @@ def rate(level, results, options={}, lang=tr.en()):
 	main_score = main_score / main_weight * 100 if main_weight > 0 else 100
 	main_score = 100 if main_score > 99 else main_score
 	sub_score = sub_score / sub_weight * 100 if sub_weight > 0 else 100
-	print(f'Gear Score: {score:.2f}% (main {main_score:.2f}% {main_weight}, sub {sub_score:.2f}% {sub_weight})')
+	# print(f'Gear Score: {score:.2f}% (main {main_score:.2f}% {main_weight}, sub {sub_score:.2f}% {sub_weight})')
 	return score, main_score, main_weight, sub_score, sub_weight
 
 if __name__ == '__main__':
 	if sys.version_info[0] == 3 and sys.version_info[1] >= 8 and sys.platform.startswith('win'):
 		asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 	url = 'https://cdn.discordapp.com/attachments/787747793228922910/794556364059705374/image0.png'
-	lang = tr.vi()
+	if len(sys.argv) > 1:
+			url = sys.argv[1]
+	lang = tr.cn()
 	suc, text = asyncio.run(ocr(url, 2, lang))
-	print(text)
+	# print(text)
 	if suc:
 		level, results = parse(text, lang)
 		if level == None:
 			level = 20
-		rate(level, results, {}, lang)
+		score, main_score, main_weight, sub_score, sub_weight = rate(level, results, {}, lang)
+		output = f"圣遗物等级: {level}"
+		for result in results:
+			output += f"\n- {result[0]}: {result[1]}"
+		output += f"\n\n圣遗物评分: {score:.2f}"
+		output += f"\n主属性评分: {main_score:.2f}"
+		output += f"\n副属性评分: {sub_score:.2f}"
+		output += f"\n\n有任何问题,请加入 https://discord.gg/SyGmBxds3M"
+		print(output)
+
